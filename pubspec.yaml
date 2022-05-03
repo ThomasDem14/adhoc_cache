@@ -15,9 +15,9 @@ dependencies:
   cupertino_icons: ^1.0.2
   path_provider: ^2.0.9
   file_picker: ^4.5.1
-  nearby_plugin:
-    path: "../nearby_plugin"
 
+  adhoc_plugin:
+    path: "../adhoc_plugin"
   
   provider: ^6.0.2
   uuid: ^3.0.6

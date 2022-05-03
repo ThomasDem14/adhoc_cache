@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:adhoc_cache/connected_device.dart';
 import 'package:adhoc_cache/playlist_item.dart';
+import 'package:adhoc_plugin/adhoc_plugin.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nearby_plugin/nearby_plugin.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:collection/collection.dart';
 import 'package:uuid/uuid.dart';
@@ -22,9 +21,12 @@ class AdhocManager extends ChangeNotifier {
 
   final _uuid = const Uuid().v4();
 
-  final TransferManager _manager = TransferManager(NearbyStrategy.P2P_STAR);
-  final List<ConnectedDevice> _discovered = List.empty(growable: true);
+  final TransferManager _manager = TransferManager(true);
+
+  final List<AdHocDevice> _discovered = List.empty(growable: true);
+  final List<ConnectedDevice> _discoveredFormatted = List.empty(growable: true);
   final List<ConnectedDevice> _peers = List.empty(growable: true);
+
   final List<PlaylistItem> _playlist = List.empty(growable: true);
   final HashMap<String, HashMap<String, PlatformFile?>> _globalPlaylist =
       HashMap();
@@ -37,64 +39,78 @@ class AdhocManager extends ChangeNotifier {
   String? selected = NONE;
 
   AdhocManager() {
-    _manager.enable("");
+    _manager.enable();
     _manager.eventStream.listen(_processAdHocEvent);
+    _manager.open = true;
   }
 
   // Adhoc functions
 
   void discover() {
-    _manager.discovery(3600);
+    _manager.discovery();
   }
 
   void connect(ConnectedDevice device) async {
-    _manager.connect(device.address!);
-    _discovered.removeWhere((element) => (element.address == device.address));
+    var adhocDevice =
+        _discovered.firstWhere((e) => device.address == _macFromAdhocDevice(e));
+
+    await _manager.connect(adhocDevice);
+
+    _discovered.removeWhere((e) => (e.mac == adhocDevice.mac));
+    _discoveredFormatted.removeWhere((e) => (e.address == device.address));
     notifyListeners();
   }
 
-  void _processAdHocEvent(NearbyMessage event) {
+  void _processAdHocEvent(Event event) {
     switch (event.type) {
-      case NearbyMessageType.onEndpointDiscovered:
-        var endpoint =
-            ConnectedDevice(label: event.endpoint, address: event.endpointId);
+      case AdHocType.onDeviceDiscovered:
+        var endpoint = ConnectedDevice(
+            label: event.device!.name,
+            address: _macFromAdhocDevice(event.device!));
         // Check for duplicate
         var duplicate =
             _discovered.firstWhereOrNull((e) => endpoint.address == e.address);
         if (duplicate == null) {
-          _discovered.add(endpoint);
+          _discoveredFormatted.add(endpoint);
+          _discovered.add(event.device!);
           notifyListeners();
         }
         break;
-      case NearbyMessageType.onEndpointLost:
-        _discovered.removeWhere((e) => e.address == event.endpointId);
-        notifyListeners();
+      case AdHocType.onDiscoveryStarted:
         break;
-      case NearbyMessageType.onDiscoveryEnded:
+      case AdHocType.onDiscoveryCompleted:
         break;
-      case NearbyMessageType.onPayloadReceived:
+      case AdHocType.onDataReceived:
         _processDataReceived(event);
         break;
-      case NearbyMessageType.onPayloadTransferred:
+      case AdHocType.onForwardData:
+        _processDataReceived(event);
         break;
-      case NearbyMessageType.onConnectionAccepted:
-        _discovered.removeWhere((e) => e.address == event.endpointId);
-        _peers.add(
-            ConnectedDevice(label: event.endpoint, address: event.endpointId));
+      case AdHocType.onConnection:
+        _discovered.removeWhere((e) => e.mac == event.device!.mac);
+        _discoveredFormatted.removeWhere(
+            (e) => e.address == _macFromAdhocDevice(event.device!));
+
+        _peers.add(ConnectedDevice(
+            label: event.device!.name,
+            address: _macFromAdhocDevice(event.device!)));
         notifyListeners();
         break;
-      case NearbyMessageType.onConnectionEnded:
-      case NearbyMessageType.onConnectionRejected:
-        _peers.removeWhere((e) => e.address == event.endpointId);
+      case AdHocType.onConnectionClosed:
+        break;
+      case AdHocType.onInternalException:
+        break;
+      case AdHocType.onGroupInfo:
+        break;
+      case AdHocType.onGroupDataReceived:
         break;
       default:
     }
   }
 
-  Future<void> _processDataReceived(NearbyMessage event) async {
-    var peer =
-        ConnectedDevice(label: event.endpoint, address: event.endpointId);
-    var data = jsonDecode(jsonDecode(jsonEncode(event.payload))) as Map;
+  Future<void> _processDataReceived(Event event) async {
+    var peer = event.device;
+    var data = event.data as Map;
 
     switch (data['type'] as int) {
       case PLAYLIST:
@@ -133,7 +149,7 @@ class AdhocManager extends ChangeNotifier {
         _globalPlaylist[peerUuid] = entry;
 
         notifyListeners();
-        _manager.broadcastExcept(jsonEncode(data), [peer.address!]);
+        _manager.broadcastExcept(data, peer!);
         break;
 
       case REQUEST:
@@ -173,7 +189,7 @@ class AdhocManager extends ChangeNotifier {
           message = HashMap<String, dynamic>();
           message.putIfAbsent('type', () => TRANSFER);
           message.putIfAbsent('name', () => name);
-          _manager.sendPayload(jsonEncode(message), peer.address!);
+          _manager.sendMessageTo(message, peer!.label!);
 
           message.clear();
 
@@ -181,7 +197,7 @@ class AdhocManager extends ChangeNotifier {
           message.putIfAbsent('name', () => name);
           message.putIfAbsent('song', () => bytes);
           message.putIfAbsent('uuid', () => _uuid);
-          _manager.sendPayload(jsonEncode(message), peer.address!);
+          _manager.sendMessageTo(message, peer.label!);
         }
 
         break;
@@ -271,7 +287,7 @@ class AdhocManager extends ChangeNotifier {
     message.putIfAbsent('peers', () => peers);
     message.putIfAbsent('songs', () => songs);
     message.putIfAbsent('timestamp', () => DateTime.now().toIso8601String());
-    _manager.broadcast(jsonEncode(message));
+    _manager.broadcast(message);
   }
 
   void switchView() {
@@ -300,7 +316,7 @@ class AdhocManager extends ChangeNotifier {
             var message = HashMap<String, dynamic>();
             message.putIfAbsent('type', () => REQUEST);
             message.putIfAbsent('name', () => selected);
-            _manager.broadcast(jsonEncode(message));
+            _manager.broadcast(message);
 
             requested = true;
             notifyListeners();
@@ -308,7 +324,7 @@ class AdhocManager extends ChangeNotifier {
 
             Timer(const Duration(seconds: 30), () {
               if (requested == true && _isTransfering[selected] == false) {
-                _manager.sendPayload(jsonEncode(message), peerName);
+                _manager.sendMessageTo(message, peerName);
               }
             });
           }
@@ -342,8 +358,14 @@ class AdhocManager extends ChangeNotifier {
 
   // Getters
 
-  List<ConnectedDevice> get discovered => _discovered;
+  List<ConnectedDevice> get discovered => _discoveredFormatted;
   List<ConnectedDevice> get peers => _peers;
   List<PlaylistItem> get playlist => _playlist;
   HashMap<String, PlatformFile?> get localPlaylist => _localPlaylist;
+
+  // Others
+
+  String _macFromAdhocDevice(AdHocDevice device) {
+    return device.mac.ble == '' ? device.mac.wifi : device.mac.ble;
+  }
 }
