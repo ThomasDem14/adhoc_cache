@@ -22,7 +22,7 @@ class AdhocManager extends ChangeNotifier {
 
   final _uuid = const Uuid().v4();
 
-  final TransferManager _manager = TransferManager();
+  final TransferManager _manager = TransferManager(NearbyStrategy.P2P_STAR);
   final List<ConnectedDevice> _discovered = List.empty(growable: true);
   final List<ConnectedDevice> _peers = List.empty(growable: true);
   final List<PlaylistItem> _playlist = List.empty(growable: true);
@@ -76,7 +76,6 @@ class AdhocManager extends ChangeNotifier {
         _processDataReceived(event);
         break;
       case NearbyMessageType.onPayloadTransferred:
-        _processDataReceived(event);
         break;
       case NearbyMessageType.onConnectionAccepted:
         _discovered.removeWhere((e) => e.address == event.endpointId);

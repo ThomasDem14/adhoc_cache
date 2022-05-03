@@ -18,8 +18,7 @@ dependencies:
   nearby_plugin:
     path: "../nearby_plugin"
 
-  adhoc_plugin:
-    path: "../adhoc_plugin"
+  
   provider: ^6.0.2
   uuid: ^3.0.6
 

@@ -1,4 +1,4 @@
-import 'package:adhoc_cache/adhoc_manager.dart';
+import 'package:adhoc_cache/nearby_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
