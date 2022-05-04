@@ -75,8 +75,6 @@ class AdhocManager extends ChangeNotifier {
       case NearbyMessageType.onPayloadReceived:
         _processDataReceived(event);
         break;
-      case NearbyMessageType.onPayloadTransferred:
-        break;
       case NearbyMessageType.onConnectionAccepted:
         _discovered.removeWhere((e) => e.address == event.endpointId);
         _peers.add(
@@ -125,7 +123,9 @@ class AdhocManager extends ChangeNotifier {
           }
 
           var pair = PlaylistItem(source: peerUuid, title: songs[i] as String);
-          if (!_playlist.contains(pair)) {
+          var duplicate =
+              _playlist.firstWhereOrNull((e) => e.title == pair.title);
+          if (duplicate == null) {
             _playlist.add(pair);
           }
         }
