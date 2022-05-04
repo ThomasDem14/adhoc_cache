@@ -141,7 +141,9 @@ class AdhocManager extends ChangeNotifier {
           }
 
           var pair = PlaylistItem(source: peerUuid, title: songs[i] as String);
-          if (!_playlist.contains(pair)) {
+          var duplicate =
+              _playlist.firstWhereOrNull((e) => e.title == pair.title);
+          if (duplicate == null) {
             _playlist.add(pair);
           }
         }
@@ -255,7 +257,9 @@ class AdhocManager extends ChangeNotifier {
 
         _localPlaylist.putIfAbsent(file.name, () => song);
         var pair = PlaylistItem(source: _uuid, title: file.name);
-        if (!_playlist.contains(pair)) {
+        var duplicate =
+            _playlist.firstWhereOrNull((e) => e.title == pair.title);
+        if (duplicate == null) {
           _playlist.add(pair);
         }
       }
