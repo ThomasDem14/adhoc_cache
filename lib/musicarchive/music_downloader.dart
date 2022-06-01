@@ -52,7 +52,6 @@ class MusicDownloader {
 
   Future<Uint8List> downloadSong(Song song) async {
     var httpClient = HttpClient();
-    print(song.url);
     var request = await httpClient.getUrl(Uri.parse(song.url));
     var response = await request.close();
 

@@ -266,8 +266,8 @@ class AdhocManager extends ChangeNotifier {
     var songs = List<String>.empty(growable: true);
 
     _globalPlaylist.forEach((peer, song) {
-      peers.add(peer);
       song.forEach((key, value) {
+        peers.add(peer);
         songs.add(key);
       });
     });
@@ -404,7 +404,6 @@ class AdhocManager extends ChangeNotifier {
   List<ConnectedDevice> get discovered => _discoveredFormatted;
   List<ConnectedDevice> get peers => _peers;
   List<PlaylistItem> get playlist => _playlist;
-  HashMap<String, PlatformFile?> get localPlaylist => _localPlaylist;
 
   // Others
 
