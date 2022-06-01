@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'constants.dart';
-import 'search_bar.dart';
 
 class MainPage extends StatelessWidget {
   const MainPage({Key? key}) : super(key: key);
@@ -26,24 +25,14 @@ class MainPage extends StatelessWidget {
                           .openFileExplorer();
                       break;
 
-                    case MenuOptions.search:
-                      var songs = List<String>.empty(growable: true);
-                      Provider.of<AdhocManager>(context, listen: false)
-                          .localPlaylist
-                          .entries
-                          .map((entry) => songs.add(entry.key));
-
-                      Provider.of<AdhocManager>(context, listen: false).selected =
-                          (await showSearch(
-                                context: context,
-                                delegate: SearchBar(songs),
-                              )) ??
-                              NONE;
-                      break;
-
                     case MenuOptions.display:
                       Provider.of<AdhocManager>(context, listen: false)
                           .switchView();
+                      break;
+
+                    case MenuOptions.download:
+                      await Provider.of<AdhocManager>(context, listen: false)
+                          .openFileDownloader();
                       break;
                   }
                 },
@@ -56,10 +45,10 @@ class MainPage extends StatelessWidget {
                     ),
                   ),
                   const PopupMenuItem<MenuOptions>(
-                    value: MenuOptions.search,
+                    value: MenuOptions.download,
                     child: ListTile(
-                      leading: Icon(Icons.search),
-                      title: Text('Search song'),
+                      leading: Icon(Icons.download),
+                      title: Text('Download song'),
                     ),
                   ),
                   const PopupMenuItem<MenuOptions>(

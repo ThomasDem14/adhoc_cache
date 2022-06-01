@@ -27,12 +27,14 @@ class AdhocManager extends ChangeNotifier {
   final List<ConnectedDevice> _discoveredFormatted = List.empty(growable: true);
   final List<ConnectedDevice> _peers = List.empty(growable: true);
 
+  // Pair source x filename
   final List<PlaylistItem> _playlist = List.empty(growable: true);
   final HashMap<String, HashMap<String, PlatformFile?>> _globalPlaylist =
       HashMap();
+  // Name of the song => file
   final HashMap<String, PlatformFile?> _localPlaylist = HashMap();
+
   final HashMap<String, bool> _isTransfering = HashMap();
-  final Set<String> timestamps = <String>{};
 
   bool requested = false;
   bool display = false;
@@ -76,10 +78,6 @@ class AdhocManager extends ChangeNotifier {
           notifyListeners();
         }
         break;
-      case AdHocType.onDiscoveryStarted:
-        break;
-      case AdHocType.onDiscoveryCompleted:
-        break;
       case AdHocType.onDataReceived:
         _processDataReceived(event);
         break;
@@ -90,19 +88,14 @@ class AdhocManager extends ChangeNotifier {
         _discovered.removeWhere((e) => e.mac == event.device!.mac);
         _discoveredFormatted.removeWhere(
             (e) => e.address == _macFromAdhocDevice(event.device!));
-
         _peers.add(ConnectedDevice(
             label: event.device!.name,
             address: _macFromAdhocDevice(event.device!)));
         notifyListeners();
         break;
       case AdHocType.onConnectionClosed:
-        break;
-      case AdHocType.onInternalException:
-        break;
-      case AdHocType.onGroupInfo:
-        break;
-      case AdHocType.onGroupDataReceived:
+        _peers.removeWhere((device) => device.address == event.device!.address);
+        notifyListeners();
         break;
       default:
     }
@@ -116,12 +109,6 @@ class AdhocManager extends ChangeNotifier {
       case PLAYLIST:
         var peers = data['peers'] as List;
         var songs = data['songs'] as List;
-        var timestamp = data['timestamp'] as String;
-        if (timestamps.contains(timestamp)) {
-          break;
-        } else {
-          timestamps.add(timestamp);
-        }
 
         var peerUuid = peers.first as String;
         var entry = _globalPlaylist[peerUuid] ?? HashMap();
@@ -213,7 +200,8 @@ class AdhocManager extends ChangeNotifier {
         var tempFile = File('${tempDir.path}/$name');
         await tempFile.writeAsBytes(song, flush: true);
 
-        var entry = HashMap<String, PlatformFile>();
+        var entry =
+            _globalPlaylist[data['uuid']] ?? HashMap<String, PlatformFile>();
         entry.putIfAbsent(
             name,
             () => PlatformFile(
@@ -290,9 +278,11 @@ class AdhocManager extends ChangeNotifier {
     message.putIfAbsent('type', () => PLAYLIST);
     message.putIfAbsent('peers', () => peers);
     message.putIfAbsent('songs', () => songs);
-    message.putIfAbsent('timestamp', () => DateTime.now().toIso8601String());
+    ;
     _manager.broadcast(message);
   }
+
+  Future<void> openFileDownloader() async {}
 
   void switchView() {
     display = !display;

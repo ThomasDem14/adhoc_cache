@@ -1,4 +1,4 @@
-enum MenuOptions { add, search, display }
+enum MenuOptions { add, download, display }
 
 const PLAYLIST = 0;
 const REQUEST = 1;
