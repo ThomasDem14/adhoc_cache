@@ -1,18 +1,18 @@
 class ConnectedDevice {
-  String? label;
+  String? name;
   String? address;
 
-  ConnectedDevice({this.label, this.address});
+  ConnectedDevice({this.name, this.address});
 
   factory ConnectedDevice.fromJson(Map<String, dynamic> json) {
     return ConnectedDevice(
-      label: json['label'],
+      name: json['name'],
       address: json['address'],
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'label': label,
+        'name': name,
         'address': address,
       };
 }
