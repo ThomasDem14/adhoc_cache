@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:adhoc_cache/connected_device.dart';
+import 'package:adhoc_cache/musicarchive/music_downloader.dart';
 import 'package:adhoc_cache/playlist_item.dart';
 import 'package:adhoc_plugin/adhoc_plugin.dart';
 import 'package:file_picker/file_picker.dart';
@@ -37,8 +38,12 @@ class AdhocManager extends ChangeNotifier {
   final HashMap<String, bool> _isTransfering = HashMap();
 
   bool requested = false;
-  bool display = false;
+  int display = 0;
   String? selected = NONE;
+
+  final MusicDownloader _musicDownloader = MusicDownloader();
+  bool displaySongs = false;
+  List<Song> availableSongs = List.empty(growable: true);
 
   AdhocManager() {
     _manager.enable();
@@ -278,14 +283,58 @@ class AdhocManager extends ChangeNotifier {
     message.putIfAbsent('type', () => PLAYLIST);
     message.putIfAbsent('peers', () => peers);
     message.putIfAbsent('songs', () => songs);
-    ;
     _manager.broadcast(message);
   }
 
-  Future<void> openFileDownloader() async {}
+  List<MusicCategories> getCategories() {
+    return _musicDownloader.getCategories();
+  }
 
-  void switchView() {
-    display = !display;
+  void displaySongsByCategory(MusicCategories category) async {
+    availableSongs = await _musicDownloader.getByCategory(category);
+    displaySongs = true;
+    notifyListeners();
+  }
+
+  Future<void> downloadSong(Song song) async {
+    var songBytes = await _musicDownloader.downloadSong(song);
+
+    var tempDir = await getTemporaryDirectory();
+    var tempFile = File('${tempDir.path}/${song.title}');
+    await tempFile.writeAsBytes(songBytes, flush: true);
+
+    var file = PlatformFile(
+      name: song.title,
+      path: tempFile.path,
+      bytes: songBytes,
+      size: songBytes.length,
+    );
+
+    _localPlaylist.putIfAbsent(file.name, () => file);
+    var pair = PlaylistItem(source: _uuid, title: file.name);
+    var duplicate = _playlist.firstWhereOrNull((e) => e.title == pair.title);
+    if (duplicate == null) {
+      _playlist.add(pair);
+    }
+
+    _updatePlaylist();
+  }
+
+  void screenConnections() {
+    display = 0;
+    displaySongs = false;
+    notifyListeners();
+  }
+
+  void screenPlaylist() {
+    displaySongs = false;
+    display = 1;
+    notifyListeners();
+  }
+
+  void screenDownload() {
+    displaySongs = false;
+    display = 2;
     notifyListeners();
   }
 
