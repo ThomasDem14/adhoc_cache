@@ -204,6 +204,11 @@ class AdhocManager extends ChangeNotifier {
                 bytes: song,
                 name: name,
                 path: tempFile.path,
+                size: song.length),
+            ifAbsent: () => PlatformFile(
+                bytes: song,
+                name: name,
+                path: tempFile.path,
                 size: song.length));
 
         _globalPlaylist.update(data['uuid'], (value) => entry,
