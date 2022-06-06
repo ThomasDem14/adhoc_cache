@@ -198,9 +198,9 @@ class AdhocManager extends ChangeNotifier {
 
         var entry =
             _globalPlaylist[data['uuid']] ?? HashMap<String, PlatformFile>();
-        entry.putIfAbsent(
+        entry.update(
             name,
-            () => PlatformFile(
+            (value) => PlatformFile(
                 bytes: song,
                 name: name,
                 path: tempFile.path,
